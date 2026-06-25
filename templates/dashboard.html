@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>{{ session.host_name }}'s Lobby — RVGL Live</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Share Tech Mono', 'monospace'],
+            mono: ['Courier Prime', 'monospace'],
+            hud: ['Orbitron', 'sans-serif']
+          },
+          colors: {
+            deep: '#050508',
+            surface: '#0d0e15',
+            surfaceAlt: '#161925',
+            border: '#1f2438',
+            dimText: '#8a94b8',
+            accent: '#00ffcc', // Cyber Cyan
+            neonPink: '#ff0055',
+            amber: '#ffaa00',
+            bestYellow: '#ffff00',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/dashboard.css" />
+</head>
+
+<body class="text-gray-300 min-h-screen selection:bg-accent selection:text-black">
+  <div class="max-w-[1200px] mx-auto px-2 sm:px-4 py-2 sm:py-6">
+
+    <!-- Back Button -->
+    <a href="/"
+      class="inline-flex items-center gap-1 text-[10px] sm:text-sm text-dimText hover:text-accent mb-2 sm:mb-5 transition-colors uppercase tracking-widest font-hud">
+      <svg class="w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      EXIT
+    </a>
+
+    <!-- HUD Header Panel -->
+    <div class="bg-surface border-2 border-border p-2 sm:p-5 mb-2 sm:mb-6 relative arcade-box">
+      <div
+        class="hidden sm:block absolute top-0 right-0 bg-border text-dimText px-4 py-1 text-[9px] uppercase tracking-widest font-hud">
+        Race Feed Control
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+        <span
+          class="inline-flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-0.5 sm:py-1 bg-black text-accent border border-accent/30 font-hud text-[8px] sm:text-xs font-black uppercase tracking-widest"
+          id="status-badge">
+          <span class="live-dot"></span> LIVE
+        </span>
+        <span
+          class="px-1.5 sm:px-3 py-0.5 sm:py-1 bg-black text-amber border border-amber/30 font-hud text-[8px] sm:text-xs font-black uppercase tracking-widest"
+          id="pickups-badge">
+          {{ session.pickups or '—' }}
+        </span>
+      </div>
+
+      <h1
+        class="text-lg sm:text-3xl md:text-4xl font-black text-white tracking-tight font-hud italic uppercase leading-tight"
+        id="hero-title">
+        {{ session.host_name }}<span class="text-accent">_LOBBY</span>
+      </h1>
+
+      <!-- HUD Stats Grid -->
+      <div
+        class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-1 sm:gap-4 mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-dashed border-border"
+        id="hero-meta">
+        <div class="bg-black/40 p-1 sm:p-2 border border-border/60">
+          <div class="text-[7px] sm:text-[10px] text-dimText uppercase tracking-widest">Mode</div>
+          <div class="text-[10px] sm:text-base font-bold text-white truncate" id="m-mode">{{ session.mode or '—' }}
+          </div>
+        </div>
+        <div class="bg-black/40 p-1 sm:p-2 border border-border/60">
+          <div class="text-[7px] sm:text-[10px] text-dimText uppercase tracking-widest">Tracks</div>
+          <div class="text-sm sm:text-xl font-black text-accent" id="m-tracks">{{ session.tracks_played }}</div>
+        </div>
+        <div class="bg-black/40 p-1 sm:p-2 border border-border/60">
+          <div class="text-[7px] sm:text-[10px] text-dimText uppercase tracking-widest">Players</div>
+          <div class="text-sm sm:text-xl font-black text-amber" id="m-players">—</div>
+        </div>
+        <div class="bg-black/40 p-1 sm:p-2 border border-border/60">
+          <div class="text-[7px] sm:text-[10px] text-dimText uppercase tracking-widest">Version</div>
+          <div class="text-[9px] sm:text-sm font-bold text-gray-300 font-mono truncate" id="m-version">{{
+            session.version or '—' }}</div>
+        </div>
+        <div class="bg-black/40 p-1 sm:p-2 border border-border/60">
+          <div class="text-[7px] sm:text-[10px] text-dimText uppercase tracking-widest">Connection</div>
+          <div class="text-[8px] sm:text-xs font-bold text-gray-300 truncate" id="m-conn">{{ session.connection or '—'
+            }}</div>
+        </div>
+        <div class="bg-black/40 p-1 sm:p-2 border border-border/60 hidden sm:block">
+          <div class="text-[7px] sm:text-[10px] text-dimText uppercase tracking-widest">Date</div>
+          <div class="text-[8px] sm:text-xs font-bold text-gray-400 font-mono" id="m-date">{{ session.session_date or
+            '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div
+      class="flex gap-1 sm:gap-2 border-b-2 border-border mb-4 sm:mb-6 overflow-x-auto whitespace-nowrap -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-hide"
+      id="tab-bar" style="-ms-overflow-style:none;scrollbar-width:none;">
+      <button
+        class="tab-btn active px-3 sm:px-5 py-2 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest border-t-2 border-x-2 border-transparent text-dimText whitespace-nowrap font-hud flex-shrink-0"
+        data-tab="score">SCORE</button>
+      <button
+        class="tab-btn px-3 sm:px-5 py-2 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest border-t-2 border-x-2 border-transparent text-dimText whitespace-nowrap font-hud flex-shrink-0"
+        data-tab="time">TIME</button>
+      <button
+        class="tab-btn px-3 sm:px-5 py-2 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest border-t-2 border-x-2 border-transparent text-dimText whitespace-nowrap font-hud flex-shrink-0"
+        data-tab="cars">CARS</button>
+      <button
+        class="tab-btn px-3 sm:px-5 py-2 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest border-t-2 border-x-2 border-transparent text-dimText whitespace-nowrap font-hud flex-shrink-0"
+        data-tab="races">RACE INFO</button>
+    </div>
+
+    <!-- Tab Panels -->
+    <div id="panel-score" class="space-y-2 sm:space-y-6"></div>
+    <div id="panel-time" class="hidden space-y-2 sm:space-y-6"></div>
+    <div id="panel-cars" class="hidden"></div>
+    <div id="panel-races" class="hidden"></div>
+
+    <!-- System Status Footer -->
+    <div
+      class="text-center mt-6 sm:mt-8 py-3 border-t border-border/40 text-[10px] sm:text-xs text-dimText font-mono uppercase tracking-widest"
+      id="update-timer">
+      STABILIZING HOST SIGNAL...
+    </div>
+  </div>
+  </div>
+
+  <script>
+    const SID = "{{ session.id }}";
+    const POLL = 5000;
+    let DATA = null;
+
+    // Global memory for expanded rows
+    const expandedRows = new Set();
+    window.toggleCars = function (playerName) {
+      if (expandedRows.has(playerName)) {
+        expandedRows.delete(playerName);
+      } else {
+        expandedRows.add(playerName);
+      }
+      // Immediately toggle UI without waiting for next poll
+      const rows = document.querySelectorAll(`.car-breakdown-${playerName}`);
+      rows.forEach(r => r.classList.toggle('hidden'));
+    };
+
+    // Tab switching logic
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ['score', 'time', 'cars', 'races'].forEach(t => {
+          document.getElementById('panel-' + t).classList.toggle('hidden', t !== btn.dataset.tab);
+        });
+      });
+    });
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function timeSince(ts) { const d = Math.floor(Date.now() / 1000 - ts); if (d < 10) return 'SYNCED'; if (d < 60) return d + ' SECONDS AGO'; if (d < 3600) return Math.floor(d / 60) + ' MINUTES AGO'; return Math.floor(d / 3600) + ' HOURS AGO'; }
+
+    // Colorize DNF and DNS statuses
+    function colorizeStatus(timeString) {
+      if (!timeString) return timeString;
+      const valStr = timeString.toString();
+      if (valStr.includes("DNF")) return `<span class="text-dnf">${esc(valStr)}</span>`;
+      if (valStr.includes("DNS")) return `<span class="text-dns">${esc(valStr)}</span>`;
+      return esc(valStr);
+    }
+
+    // Render podium component
+    function podiumHTML(title, emoji, items, unit) {
+      if (!items || items.length === 0) return '';
+      const order = [1, 0, 2];
+      const heights = ['h-16 sm:h-24', 'h-20 sm:h-32', 'h-12 sm:h-20'];
+      const labels = ['[ 2ND ]', '[ 1ST ]', '[ 3RD ]'];
+      const colors = ['text-gray-400', 'text-bestYellow', 'text-amber'];
+      const bgs = ['bg-gray-500/5', 'bg-bestYellow/5', 'bg-amber/5'];
+      const borderStyles = ['border-gray-600', 'border-bestYellow/40', 'border-amber-700'];
+
+      let h = `<div class="bg-surface/60 border border-border p-1.5 sm:p-4 rounded-xl flex flex-col justify-between flex-1 min-w-0"><div class="text-[8px] sm:text-xs font-black text-white font-hud uppercase tracking-widest mb-1 sm:mb-4 text-center border-b border-border/60 pb-1 sm:pb-2 leading-tight">${emoji}<br class="block md:hidden"/> <span class="hidden md:inline">${title}</span></div>`;
+      h += '<div class="flex items-end justify-center gap-0.5 sm:gap-2">';
+      for (let vi = 0; vi < 3; vi++) {
+        const idx = order[vi];
+        if (idx >= items.length) { h += `<div class="flex-1 ${heights[vi]}"></div>`; continue; }
+        const p = items[idx];
+        h += `<div class="flex-1 min-w-0 ${heights[vi]} ${bgs[vi]} border ${borderStyles[vi]} rounded-t-lg flex flex-col items-center justify-end p-0.5 sm:p-2 relative">
+      <div class="text-[6px] sm:text-[10px] font-black font-hud ${colors[vi]} leading-none">${labels[vi]}</div>
+      <div class="text-[7px] sm:text-xs font-black text-white truncate w-full text-center mt-0.5 sm:mt-1 uppercase leading-none" title="${esc(p.name)}">${esc(p.name)}</div>
+      <div class="font-mono text-[7px] sm:text-sm font-bold text-accent leading-none mt-1 sm:mt-0 truncate w-full text-center" title="${p.value}">${p.value} <span class="text-[5px] sm:text-[9px] text-dimText block md:inline">${unit || ''}</span></div>
+    </div>`;
+      }
+      h += '</div></div>';
+      return h;
+    }
+
+    // Render score standings
+    function renderScore(data) {
+      const el = document.getElementById('panel-score');
+      const tracks = data.track_names || [];
+      const p_list = data.score_ladder || [];
+      const pod = data.podiums || {};
+      const isRandom = data.is_random_session || false;
+
+      const bestTrack = {};
+      tracks.forEach(t => {
+        let mx = 0;
+        p_list.forEach(p => { if ((p.tracks[t] || 0) > mx) mx = p.tracks[t]; });
+        bestTrack[t] = mx;
+      });
+      let bestTotal = 0;
+      p_list.forEach(p => { if (p.total_points > bestTotal) bestTotal = p.total_points; });
+
+      let h = '<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">';
+      h += podiumHTML('SESSION STANDINGS', '🏆', pod.score, 'PTS');
+      h += podiumHTML('AGGREGATE TIME', '⏱️', pod.time, '');
+      h += podiumHTML('TOTAL WINS', '🥇', pod.wins, 'W');
+      h += '</div>';
+
+      h += '<div class="bg-surface border-2 border-border rounded-xl overflow-hidden arcade-box"><div class="flex items-center justify-between px-3 py-2 bg-black/60 border-b-2 border-border"><span class="text-[10px] sm:text-xs font-black uppercase tracking-widest font-hud text-accent">SESSION LEADERBOARD</span></div>';
+      h += '<div class="scroll-table"><table class="w-full text-left border-collapse font-mono">';
+
+      h += '<thead><tr class="text-[9px] sm:text-[10px] uppercase tracking-widest text-dimText bg-black/40 border-b border-border">';
+      h += '<th class="px-2 py-2 w-8 text-center">POS</th>';
+      h += '<th class="px-2 py-2 text-left font-hud font-bold whitespace-nowrap pr-2 sm:pr-4">PLAYER NAME</th>';
+      h += '<th class="px-2 py-2 text-center text-dimText w-1 whitespace-nowrap pr-4 sm:pr-8">CAR</th>';
+      h += '<th class="px-2 py-2 text-center text-accent w-1 whitespace-nowrap">TOTAL</th>';
+      h += '<th class="px-2 py-2 text-center text-amber w-1 whitespace-nowrap">WINS</th>';
+      h += '<th class="px-2 py-2 text-center w-1 whitespace-nowrap pr-4 sm:pr-8">AVG</th>';
+
+      tracks.forEach(t => {
+        h += `<th class="px-2 py-1 align-bottom bg-black/20 text-gray-400 font-hud font-bold border-l border-border/40">
+          <div class="[writing-mode:vertical-rl] rotate-180 text-[10px] mx-auto whitespace-nowrap tracking-widest pb-1 pt-1">
+            ${esc(t)}
+          </div>
+        </th>`;
+      });
+      h += '</tr></thead><tbody class="divide-y divide-border/40">';
+
+      p_list.forEach((p, i) => {
+        const rc = i <= 2 ? ['text-bestYellow font-black', 'text-gray-300 font-bold', 'text-amber font-bold'][i] : 'text-dimText';
+        const rowBg = i === 0 ? 'bg-bestYellow/[0.02]' : i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.01]';
+
+        // Check if dropdown is needed (they drove > 1 car)
+        const isClickable = p.cars.length > 1;
+        const safeId = p.player_name.replace(/[^a-zA-Z0-9]/g, '_');
+        const isExpanded = expandedRows.has(safeId);
+
+        const clickAttr = isClickable ? `onclick="window.toggleCars('${safeId}')"` : '';
+        const hoverClass = isClickable ? 'cursor-pointer hover:bg-accent/[0.08]' : 'hover:bg-accent/[0.04]';
+
+        // Render main player row
+        h += `<tr class="${rowBg} ${hoverClass} transition-colors" ${clickAttr}>`;
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center font-hud font-black text-[11px] sm:text-sm ${rc}">${String(i + 1).padStart(2, '0')}</td>`;
+
+        h += `<td class="px-2 py-1.5 sm:py-2 font-bold text-white text-xs sm:text-base tracking-wide whitespace-nowrap pr-2 sm:pr-4">`;
+        h += `${esc(p.player_name)} ${isClickable ? '<span class="text-[9px] text-accent align-middle ml-2">▼</span>' : ''}</td>`;
+
+        // Format car column text
+        let displayCar = '';
+        if (isRandom) {
+          // If it's a random session, force it to say RANDOM
+          displayCar = isClickable ? "<span class='text-accent'>RANDOM</span>" : "<span class='text-dimText'>RANDOM</span>";
+        } else if (isClickable) {
+          // Normal lobby, multiple cars: Limit to 2 cars, then append "..."
+          let list = p.cars.slice(0, 2).map(c => esc(c)).join(', ');
+          if (p.cars.length > 2) list += '...';
+          displayCar = `<span class='text-accent'>${list}</span>`;
+        } else {
+          // Normal lobby, one car
+          displayCar = esc(p.cars[0] || '—');
+        }
+
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center font-bold text-[9px] sm:text-xs text-dimText pr-4 sm:pr-8 leading-tight uppercase">${displayCar}</td>`;
+
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center font-black text-xs sm:text-base ${p.total_points === bestTotal && bestTotal > 0 ? 'best-val' : 'text-accent'}">${p.total_points}</td>`;
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center font-bold text-xs sm:text-base ${p.wins > 0 ? 'text-amber' : 'text-dimText/30'}">${p.wins}</td>`;
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center text-[10px] sm:text-sm text-dimText pr-4 sm:pr-8">${p.avg_points}</td>`;
+
+        tracks.forEach(t => {
+          const v = p.tracks[t] || 0;
+          const isBest = v > 0 && v === bestTrack[t];
+          h += `<td class="px-2 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm border-l border-border/30 ${isBest ? 'best-val' : v === 0 ? 'text-dimText/30' : 'text-gray-300'}">${v || '—'}</td>`;
+        });
+        h += '</tr>';
+
+        // Render car breakdown rows
+        if (isClickable) {
+          const hiddenClass = isExpanded ? '' : 'hidden';
+          p.car_breakdown.forEach((cb) => {
+            h += `<tr class="${hiddenClass} bg-indigo-500/[0.08] border-l-2 border-indigo-500 car-breakdown-${safeId} transition-all">`;
+            h += `<td class="px-2 py-1"></td>`; // Empty position column
+            h += `<td class="px-2 py-1 text-right font-mono text-[10px] text-indigo-400 pr-2 sm:pr-4">↳</td>`; // Indentation arrow
+            h += `<td class="px-2 py-1 text-center font-bold text-[9px] sm:text-xs text-indigo-300 pr-4 sm:pr-8 leading-tight uppercase">${esc(cb.car)}</td>`;
+            h += `<td class="px-2 py-1 text-center font-black text-xs sm:text-sm text-accent/80">${cb.points}</td>`;
+            h += `<td class="px-2 py-1 text-center font-bold text-xs sm:text-sm text-amber/80">${cb.wins}</td>`;
+            h += `<td class="px-2 py-1 text-center text-[10px] sm:text-sm text-dimText pr-4 sm:pr-8">${cb.avg}</td>`;
+
+            tracks.forEach(t => {
+              const v = cb.tracks[t];
+              // Render track specific points
+              h += `<td class="px-2 py-1 text-center text-[11px] sm:text-sm border-l border-border/30 ${v === undefined ? 'text-transparent' : v === 0 ? 'text-indigo-300/30' : 'text-indigo-200'}">${v !== undefined ? v : '-'}</td>`;
+            });
+            h += '</tr>';
+          });
+        }
+      });
+
+      h += '</tbody></table></div></div>';
+      el.innerHTML = h;
+    }
+
+    // Render time standings
+    function renderTime(data) {
+      const el = document.getElementById('panel-time');
+      const tracks = data.track_names || [];
+      const t_list = data.time_ladder || [];
+
+      const bestTrack = {};
+      tracks.forEach(t => {
+        let best = '';
+        t_list.forEach(p => {
+          const v = p.tracks[t] || '';
+          if (v && v !== 'DNF' && v !== '—' && (!best || v < best)) best = v;
+        });
+        bestTrack[t] = best;
+      });
+
+      let h = '<div class="bg-surface border-2 border-border rounded-xl overflow-hidden arcade-box"><div class="px-3 py-2 bg-black/60 border-b-2 border-border"><span class="text-[10px] sm:text-xs font-black uppercase tracking-widest font-hud text-accent">TIMING LEADERBOARD</span></div>';
+      h += '<div class="scroll-table"><table class="w-full text-left border-collapse font-mono">';
+
+      h += '<thead><tr class="text-[9px] sm:text-[10px] uppercase tracking-widest text-dimText bg-black/40 border-b border-border">';
+      h += '<th class="px-2 py-2 w-8 text-center">POS</th>';
+      h += '<th class="px-2 py-2 text-left font-hud font-bold whitespace-nowrap pr-6 sm:pr-12">PLAYER NAME</th>';
+      h += '<th class="px-2 py-2 text-center text-accent w-1 whitespace-nowrap">NET TIME</th>';
+      h += '<th class="px-2 py-2 text-center text-dimText w-1 whitespace-nowrap pr-4 sm:pr-8">SPLIT GAP</th>';
+
+      tracks.forEach(t => {
+        h += `<th class="px-2 py-1 align-bottom bg-black/20 text-gray-400 font-hud font-bold border-l border-border/40">
+          <div class="[writing-mode:vertical-rl] rotate-180 text-[10px] mx-auto whitespace-nowrap tracking-widest pb-1 pt-1">
+            ${esc(t)}
+          </div>
+        </th>`;
+      });
+      h += '</tr></thead><tbody class="divide-y divide-border/40">';
+
+      t_list.forEach((p, i) => {
+        const rowBg = i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.01]';
+        const rc = i <= 2 ? ['text-bestYellow font-black', 'text-gray-300 font-bold', 'text-amber font-bold'][i] : 'text-dimText';
+        h += `<tr class="${rowBg} hover:bg-accent/[0.04] transition-colors">`;
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center font-hud font-black text-[11px] sm:text-sm ${rc}">${String(i + 1).padStart(2, '0')}</td>`;
+        h += `<td class="px-2 py-1.5 sm:py-2 font-bold text-white text-xs sm:text-base tracking-wide whitespace-nowrap pr-6 sm:pr-12">${esc(p.player_name)}</td>`;
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center font-black text-xs sm:text-base ${i === 0 ? 'best-val' : 'text-accent'} whitespace-nowrap">${p.total_time}</td>`;
+        h += `<td class="px-2 py-1.5 sm:py-2 text-center text-[10px] sm:text-sm text-dimText whitespace-nowrap pr-4 sm:pr-8">${p.split}</td>`;
+
+        tracks.forEach(t => {
+          const v = p.tracks[t] || '—';
+          const isBest = v !== '—' && v !== 'DNF' && !v.toString().startsWith('+') && !v.toString().startsWith('(');
+          const tc = v.toString().startsWith('(') ? 'text-red-500 italic' : (isBest ? 'best-val' : 'text-gray-400');
+          h += `<td class="px-2 py-1.5 sm:py-2 text-center text-[11px] sm:text-sm border-l border-border/30 ${tc} whitespace-nowrap">${colorizeStatus(v)}</td>`;
+        });
+        h += '</tr>';
+      });
+
+      h += '</tbody></table></div></div>';
+      el.innerHTML = h;
+    }
+    // Render car statistics
+    function renderCars(data) {
+      const el = document.getElementById('panel-cars');
+      let h = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">';
+      (data.car_stats || []).forEach(c => {
+        h += `<div class="bg-surface border-2 border-border p-2 sm:p-4 hover:border-accent/40 transition-colors relative group arcade-box">
+      <div class="text-sm sm:text-lg font-black text-white mb-2 sm:mb-3 font-hud italic border-b border-border pb-1 uppercase group-hover:text-accent transition-colors">${esc(c.car)}</div>
+      <div class="grid grid-cols-4 sm:grid-cols-2 gap-1 sm:gap-3 mb-2 sm:mb-3 font-mono">
+        <div class="bg-black/40 p-1 sm:p-1.5 border border-border/40"><div class="text-[7px] sm:text-[9px] text-dimText uppercase">Total Pts</div><div class="text-[10px] sm:text-base font-black text-accent">${c.total_score}</div></div>
+        <div class="bg-black/40 p-1 sm:p-1.5 border border-border/40"><div class="text-[7px] sm:text-[9px] text-dimText uppercase">Races Run</div><div class="text-[10px] sm:text-base font-bold text-white">${c.races}</div></div>
+        <div class="bg-black/40 p-1 sm:p-1.5 border border-border/40"><div class="text-[7px] sm:text-[9px] text-dimText uppercase">Wins</div><div class="text-[10px] sm:text-base font-black text-amber">${c.wins}</div></div>
+        <div class="bg-black/40 p-1 sm:p-1.5 border border-border/40"><div class="text-[7px] sm:text-[9px] text-dimText uppercase">Average Pts</div><div class="text-[10px] sm:text-base font-bold text-gray-400">${c.avg_points}</div></div>
+      </div>
+      <div class="text-[9px] sm:text-xs font-mono text-dimText pt-0.5 sm:pt-1">PLAYERS: <span class="text-gray-300 font-bold">${c.drivers.map(esc).join(', ')}</span></div>
+    </div>`;
+      });
+      h += '</div>';
+      el.innerHTML = h;
+    }
+
+    // Render single race results
+    function renderRaces(data) {
+      const el = document.getElementById('panel-races');
+      let h = '<div class="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">';
+      (data.single_races || []).forEach(r => {
+        h += `<div class="bg-surface border-2 border-border rounded-xl overflow-hidden arcade-box">
+      <div class="px-2 sm:px-4 py-1.5 sm:py-3 bg-black/60 border-b-2 border-border flex items-center justify-between font-hud">
+        <span class="text-[10px] sm:text-xs font-black text-white uppercase tracking-wider truncate mr-2">🏁 ${esc(r.track)}</span>
+        <span class="text-[8px] sm:text-[10px] font-bold text-accent tracking-widest flex-shrink-0">RACE ${String(r.race_order).padStart(2, '0')}</span>
+      </div>
+      <div class="scroll-table"><table class="w-full text-left font-mono border-collapse text-[10px] sm:text-xs">
+        <thead><tr class="text-[8px] sm:text-[9px] uppercase tracking-widest text-dimText bg-black/20 border-b border-border/60">
+          <th class="px-1 sm:px-1.5 py-1.5 sm:py-2 text-center w-6 sm:w-8">RNK</th><th class="px-1 sm:px-1.5 py-1.5 sm:py-2">PLAYER</th><th class="px-1 sm:px-1.5 py-1.5 sm:py-2 text-center">CAR</th><th class="px-1 sm:px-1.5 py-1.5 sm:py-2 text-center">TIME</th><th class="px-1 sm:px-1.5 py-1.5 sm:py-2 text-center">GAP</th><th class="px-1 sm:px-1.5 py-1.5 sm:py-2 text-center">BEST</th><th class="px-1 sm:px-1.5 py-1.5 sm:py-2 text-center text-accent w-6 sm:w-10">PTS</th>
+        </tr></thead><tbody class="divide-y divide-border/30">`;
+        r.players.forEach((p, i) => {
+          const bg = i % 2 === 0 ? 'transparent' : 'bg-white/[0.01]';
+          const tc = !p.finished ? 'text-red-500 font-bold italic' : 'text-white';
+          const timeClass = p.finished ? 'text-accent' : 'text-red-500 italic font-bold';
+          const splitClass = !p.finished ? 'text-red-400/70 italic' : 'text-dimText';
+          h += `<tr class="hover:bg-accent/[0.02] transition-colors" style="background-color: ${bg};">
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 font-hud font-black text-center ${i === 0 ? 'text-bestYellow' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber' : 'text-dimText'}">${p.rank}</td>
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 font-bold text-[10px] sm:text-sm ${tc} max-w-[55px] sm:max-w-[75px] truncate" title="${esc(p.name)}">${esc(p.name)}</td>
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 text-dimText text-center font-bold text-[9px] sm:text-[11px] max-w-[45px] sm:max-w-[65px] truncate" title="${esc(p.car)}">${esc(p.car)}</td>
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 text-center font-bold ${timeClass} whitespace-nowrap">${colorizeStatus(p.time)}</td>
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 text-center ${splitClass} whitespace-nowrap">${colorizeStatus(p.split)}</td>
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 text-center text-gray-400 whitespace-nowrap">${p.best_lap}</td>
+        <td class="px-1 sm:px-1.5 py-1 sm:py-2 text-center font-black text-[10px] sm:text-sm ${p.points > 0 ? 'text-accent' : 'text-dimText/20'}">${p.points}</td>
+      </tr>`;
+        });
+        h += '</tbody></table></div></div>';
+      });
+      h += '</div>';
+      el.innerHTML = h;
+    }
+
+    // Live stream polling loop
+    async function poll() {
+      try {
+        const res = await fetch(`/api/session/${SID}/json`);
+        if (!res.ok) return;
+        DATA = await res.json();
+        const s = DATA.session;
+
+        // Update live components
+        document.getElementById('m-mode').textContent = s.mode || '—';
+        document.getElementById('m-tracks').textContent = s.tracks_played;
+        document.getElementById('m-players').textContent = (DATA.score_ladder || []).length;
+        document.getElementById('m-version').textContent = s.version || '—';
+        document.getElementById('m-conn').textContent = s.connection || '—';
+        document.getElementById('m-date').textContent = s.session_date || '—';
+        document.getElementById('pickups-badge').textContent = '⚡ PICKUPS: ' + (s.pickups || '—').toUpperCase();
+        document.getElementById('update-timer').innerHTML = `<span class="live-dot inline-block mr-1.5 align-middle"></span> DATALINK ACTIVE | COMPILATION GENERATED ${timeSince(s.last_updated)}`;
+
+        renderScore(DATA);
+        renderTime(DATA);
+        renderCars(DATA);
+        renderRaces(DATA);
+      } catch (e) { }
+    }
+    poll();
+    setInterval(poll, POLL);
+  </script>
+</body>
+
+</html>

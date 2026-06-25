@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RVGL Live Scoreboard — Active Lobbies</title>
+    <meta name="description" content="Live race standings and scoreboards for Re-Volt (RVGL) online lobbies." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Share Tech Mono', 'monospace'],
+                        mono: ['Courier Prime', 'monospace'],
+                        hud: ['Orbitron', 'sans-serif']
+                    },
+                    colors: {
+                        deep: '#050508',
+                        surface: '#0d0e15',
+                        border: '#1f2438',
+                        dimText: '#8a94b8',
+                        accent: '#00ffcc', // Cyber Cyan
+                        amber: '#ffaa00',
+                        bestYellow: '#ffff00',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/hub.css" />
+</head>
+
+<body class="text-gray-300 min-h-screen selection:bg-accent selection:text-black">
+
+    <div class="max-w-[1100px] mx-auto px-2 sm:px-4 py-3 sm:py-12 relative z-10">
+        <header class="text-center mb-4 sm:mb-16">
+            <span
+                class="inline-block bg-accent text-black font-hud text-[8px] sm:text-xs font-black px-2 sm:px-4 py-0.5 sm:py-1.5 mb-2 sm:mb-6 uppercase tracking-widest border border-accent shadow-[0_0_15px_rgba(0,255,204,0.4)]">
+                RVGL SESSION TRACKER
+            </span>
+            <h1 class="text-xl sm:text-4xl md:text-6xl font-black text-white tracking-tight font-hud italic uppercase">
+                ACTIVE LOBBIES
+            </h1>
+            <p
+                class="text-dimText font-mono uppercase tracking-widest mt-1 sm:mt-4 text-[10px] sm:text-sm px-2 hidden sm:block">
+                Awaiting Players... Select a session to engage.
+            </p>
+        </header>
+
+        {% if sessions %}
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-6" id="lobby-grid">
+            {% for s in sessions %}
+            <a href="/session/{{ s.id }}" id="card-{{ loop.index }}"
+                class="block bg-surface border-2 border-border p-2.5 sm:p-6 relative arcade-box transition-all duration-200 hover:border-accent hover:bg-accent/[0.03] hover:shadow-[0_0_20px_rgba(0,255,204,0.2)] group">
+
+                <div class="absolute top-2 sm:top-4 right-2 sm:right-4 flex items-center gap-1 sm:gap-2">
+                    <span
+                        class="text-[8px] sm:text-[10px] font-hud font-black text-accent tracking-widest uppercase">Live</span>
+                    <span class="live-dot"></span>
+                </div>
+
+                <div class="mb-1.5 sm:mb-6">
+                    <div
+                        class="text-[8px] sm:text-xs text-dimText font-mono uppercase tracking-widest mb-0.5 sm:mb-1 group-hover:text-gray-400 transition-colors">
+                        Host Signal</div>
+                    <div
+                        class="text-base sm:text-2xl font-black text-white font-hud uppercase tracking-wider truncate group-hover:text-accent transition-colors">
+                        {{ s.host_name }}
+                    </div>
+                </div>
+
+                <div
+                    class="inline-block bg-black/50 border border-border/60 px-1.5 sm:px-3 py-0.5 sm:py-1 mb-1.5 sm:mb-6">
+                    <span class="text-amber font-hud text-[8px] sm:text-xs font-black uppercase tracking-widest">
+                        {{ s.mode or 'Race' }}
+                    </span>
+                </div>
+
+                <div
+                    class="flex gap-2 sm:grid sm:grid-cols-2 sm:gap-4 border-t border-dashed border-border pt-1.5 sm:pt-4">
+                    <div class="bg-black/30 p-1 sm:p-2 border border-border/40 flex-1">
+                        <span class="block text-sm sm:text-xl font-black text-white font-mono">{{ s.player_count
+                            }}</span>
+                        <span
+                            class="block text-[8px] sm:text-[10px] text-dimText uppercase tracking-widest">Players</span>
+                    </div>
+                    <div class="bg-black/30 p-1 sm:p-2 border border-border/40 flex-1">
+                        <span class="block text-sm sm:text-xl font-black text-white font-mono">{{ s.tracks_played
+                            }}</span>
+                        <span
+                            class="block text-[8px] sm:text-[10px] text-dimText uppercase tracking-widest">Tracks</span>
+                    </div>
+                </div>
+
+                <div
+                    class="absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-r-2 border-border group-hover:border-accent transition-colors">
+                </div>
+            </a>
+            {% endfor %}
+        </section>
+        {% else %}
+        <div
+            class="text-center py-12 sm:py-20 bg-surface/50 border-2 border-dashed border-border arcade-box max-w-2xl mx-auto px-4">
+            <div class="text-4xl sm:text-5xl mb-4 sm:mb-6 opacity-40 grayscale">🏁</div>
+            <h3 class="text-base sm:text-xl font-hud font-black text-white uppercase tracking-widest mb-2">No Active
+                Signals Detected
+            </h3>
+            <p class="text-dimText font-mono text-xs sm:text-sm uppercase">Initiate a lobby in RVGL to establish a new
+                lobby
+                connection.</p>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script>
+        setTimeout(() => location.reload(), 15000);
+    </script>
+</body>
+
+</html>
