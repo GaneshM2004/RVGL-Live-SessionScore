@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+
 app = FastAPI(title="RVGL Live Scoreboard")
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "scoreboard.db"

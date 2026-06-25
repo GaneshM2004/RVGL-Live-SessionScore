@@ -6,7 +6,7 @@ import urllib.request
 import urllib.error
 
 # ── Configuration ────────────────────────────────────────────────
-SERVER_URL = "http://localhost:8000/api/session/upload"
+SERVER_URL = "https://rvgl-live-sessionscore.onrender.com/api/session/upload"
 POLL_INTERVAL = 5  # seconds
 # ─────────────────────────────────────────────────────────────────
 
