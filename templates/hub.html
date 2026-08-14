@@ -133,7 +133,7 @@
         }
 
         function renderCoordinatorCard(session) {
-            const id = session.id;
+            const id = session.id || session.lobby_id || session.coord_id || session.ID || session.LobbyID || encodeURIComponent(session.name || session.Name || 'lobby');
             const name = getLobbyName(session);
             const playerCount = session.player_count !== undefined
                 ? session.player_count
@@ -227,7 +227,13 @@
                     const sessions = JSON.parse(event.data);
                     coordinatorSessions.clear();
                     if (Array.isArray(sessions)) {
-                        sessions.forEach(s => coordinatorSessions.set(s.id, s));
+                        sessions.forEach(s => {
+                            const sid = s.id || s.lobby_id || s.coord_id || s.ID || s.LobbyID || (s.name || s.Name ? encodeURIComponent(s.name || s.Name) : undefined);
+                            if (sid) {
+                                s.id = sid;
+                                coordinatorSessions.set(sid, s);
+                            }
+                        });
                     }
                     rebuildGrid();
                 } catch (e) {

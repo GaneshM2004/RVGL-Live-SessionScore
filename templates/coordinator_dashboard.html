@@ -54,7 +54,7 @@
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 mb-1 sm:mb-2">
           <span class="live-dot" id="live-indicator"></span>
-          <span class="text-[9px] sm:text-xs text-accent font-mono uppercase tracking-widest font-bold">PUBLIC LOBBY
+          <span class="text-[9px] sm:text-xs text-accent font-mono uppercase tracking-widest font-bold" id="lobby-privacy-badge">PUBLIC LOBBY
             DATALINK</span>
           <span
             class="text-[7px] sm:text-[9px] font-hud font-black text-amber tracking-widest uppercase border border-amber/40 px-1">COORDINATOR</span>
@@ -482,6 +482,9 @@
             dateStr = new Date().toISOString().split('T')[0];
           }
 
+          // Privacy flag check
+          const isPrivate = Boolean(data.is_private || data.private || (data.is_public === false) || (data.IsPublic === false) || (data.Public === false));
+
           // Update Header Text Directly
           const headingEl = document.getElementById('host-heading');
           if (headingEl) headingEl.textContent = lobbyName;
@@ -497,6 +500,22 @@
 
           const dateEl = document.getElementById('m-date');
           if (dateEl) dateEl.textContent = dateStr;
+
+          const privacyBadge = document.getElementById('lobby-privacy-badge');
+          if (privacyBadge) {
+            if (isPrivate) {
+              privacyBadge.textContent = 'PRIVATE LOBBY DATALINK';
+              privacyBadge.className = 'text-[9px] sm:text-xs font-mono uppercase tracking-widest font-bold text-amber';
+            } else {
+              privacyBadge.textContent = 'PUBLIC LOBBY DATALINK';
+              privacyBadge.className = 'text-[9px] sm:text-xs font-mono uppercase tracking-widest font-bold text-accent';
+            }
+          }
+
+          const connEl = document.getElementById('m-conn');
+          if (connEl) {
+            connEl.textContent = isPrivate ? 'Private Stream' : 'Public Stream';
+          }
 
           if (history.length === 0) {
             const timerEl = document.getElementById('update-timer');
@@ -517,6 +536,7 @@
               car_rating: carRating,
               pickups: pickupsStr,
               date_str: dateStr,
+              is_private: isPrivate,
               history: history,
             }),
           });

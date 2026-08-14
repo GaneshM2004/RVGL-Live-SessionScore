@@ -619,6 +619,7 @@ class CoordinatorIngestPayload(BaseModel):
     car_rating: str = "Rookie"
     pickups: str = "Enabled"
     date_str: str = ""
+    is_private: bool = False
     history: list
 
 
@@ -746,11 +747,13 @@ async def coordinator_ingest(payload: CoordinatorIngestPayload):
             (payload.coord_id, coord_session_key)
         ).fetchone()
 
+        conn_str = "Private (Coordinator)" if payload.is_private else "Public (Coordinator)"
+
         if row:
             session_id = row["id"]
             conn.execute(
-                "UPDATE sessions SET host_name=?, last_updated=?, mode=?, version=?, tracks_played=?, pickups=?, session_date=? WHERE id=?",
-                (payload.lobby_name, now, payload.mode, payload.car_rating, len(races), payload.pickups, payload.date_str, session_id)
+                "UPDATE sessions SET host_name=?, last_updated=?, mode=?, version=?, tracks_played=?, pickups=?, session_date=?, connection=? WHERE id=?",
+                (payload.lobby_name, now, payload.mode, payload.car_rating, len(races), payload.pickups, payload.date_str, conn_str, session_id)
             )
         else:
             session_id = payload.coord_id
@@ -760,7 +763,7 @@ async def coordinator_ingest(payload: CoordinatorIngestPayload):
                  version, connection, session_date, pickups)
                 VALUES (?, ?, 'Active', ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (session_id, payload.lobby_name, now, now,
-                 payload.mode, len(races), payload.car_rating, "Public (Coordinator)", payload.date_str, payload.pickups)
+                 payload.mode, len(races), payload.car_rating, conn_str, payload.date_str, payload.pickups)
             )
 
         # Wipe and re-insert race results
