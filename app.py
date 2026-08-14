@@ -5,6 +5,7 @@ Granular race-by-race storage, rich aggregation engine,
 live HTML dashboard, and Bulletproof Time Ladder Penalties.
 """
 
+import asyncio
 import csv
 import io
 import sqlite3
@@ -14,8 +15,9 @@ from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -227,6 +229,14 @@ async def upload_session(payload: UploadPayload):
     if not host_name or host_name == "Unknown":
         return JSONResponse({"error": "Could not determine host name"}, status_code=400)
 
+    # Prevent CSV uploader from creating duplicate sessions if Coordinator is actively tracking this lobby
+    with get_db() as conn:
+        active_coord = conn.execute(
+            "SELECT id FROM sessions WHERE status='Active' AND connection LIKE '%Coordinator%'",
+        ).fetchone()
+        if active_coord:
+            return JSONResponse({"status": "ignored", "reason": "Coordinator SSE is actively tracking this match"})
+
     tracks_played = len(races)
 
     with get_db() as conn:
@@ -288,10 +298,21 @@ async def session_json(session_id: str):
         race_rows = conn.execute("SELECT * FROM races WHERE session_id=? ORDER BY race_order", (session_id,)).fetchall()
         all_results = []
         track_names = []
+        race_track_map = {}
+        track_counts = {}
+
         for r in race_rows:
             results = conn.execute("SELECT * FROM race_results WHERE race_id=? ORDER BY position", (r["id"],)).fetchall()
+            base_name = r["track_name"]
+            track_counts[base_name] = track_counts.get(base_name, 0) + 1
+            if track_counts[base_name] > 1:
+                unique_name = f"{base_name} ({track_counts[base_name]})"
+            else:
+                unique_name = base_name
+
+            track_names.append(unique_name)
+            race_track_map[r["id"]] = unique_name
             all_results.append((dict(r), [dict(res) for res in results]))
-            track_names.append(r["track_name"])
 
         # --- 1. Score Ladder (Multi-Car Tracking) ---
         player_stats = defaultdict(lambda: {
@@ -301,6 +322,7 @@ async def session_json(session_id: str):
         })
         
         for race, results in all_results:
+            unique_track = race_track_map[race["id"]]
             for res in results:
                 ps = player_stats[res["player_name"]]
                 car = res["car"]
@@ -309,7 +331,7 @@ async def session_json(session_id: str):
                 ps["points"] += res["points_earned"]
                 if res["finished"]:
                     ps["races"] += 1
-                ps["tracks"][race["track_name"]] = res["points_earned"]
+                ps["tracks"][unique_track] = res["points_earned"]
                 ps["cars_used"].add(car)
                 if res["position"] == 1 and res["finished"]:
                     ps["wins"] += 1
@@ -319,7 +341,7 @@ async def session_json(session_id: str):
                 cd["points"] += res["points_earned"]
                 if res["finished"]:
                     cd["races"] += 1
-                cd["tracks"][race["track_name"]] = res["points_earned"]
+                cd["tracks"][unique_track] = res["points_earned"]
                 if res["position"] == 1 and res["finished"]:
                     cd["wins"] += 1
 
@@ -354,14 +376,14 @@ async def session_json(session_id: str):
         track_worst_ms = defaultdict(int)
         
         for race, results in all_results:
-            trk = race["track_name"]
+            unique_track = race_track_map[race["id"]]
             for res in results:
                 ms = _time_to_ms(res["time_str"])
                 if res["finished"] and ms > 0:
-                    if ms < track_best_ms[trk]:
-                        track_best_ms[trk] = ms
-                    if ms > track_worst_ms[trk]:
-                        track_worst_ms[trk] = ms
+                    if ms < track_best_ms[unique_track]:
+                        track_best_ms[unique_track] = ms
+                    if ms > track_worst_ms[unique_track]:
+                        track_worst_ms[unique_track] = ms
 
         # --- 3. Time Ladder (Fixed DNS Tagging) ---
         player_times = defaultdict(lambda: {"total_ms": 0, "tracks": {}})
@@ -372,9 +394,9 @@ async def session_json(session_id: str):
                 all_players.add(res["player_name"])
 
         for race, results in all_results:
-            trk = race["track_name"]
-            best_for_track = track_best_ms[trk] if track_best_ms[trk] != float('inf') else 0
-            worst_for_track = track_worst_ms[trk] if track_worst_ms[trk] != 0 else 60000 
+            unique_track = race_track_map[race["id"]]
+            best_for_track = track_best_ms[unique_track] if track_best_ms[unique_track] != float('inf') else 0
+            worst_for_track = track_worst_ms[unique_track] if track_worst_ms[unique_track] != 0 else 60000 
             dnf_penalty_ms = worst_for_track + 30000 
             
             raced_this_track = {res["player_name"]: res for res in results}
@@ -390,17 +412,17 @@ async def session_json(session_id: str):
                 if res["finished"] and ms > 0:
                     pt["total_ms"] += ms
                     if ms == best_for_track:
-                        pt["tracks"][trk] = res["time_str"]
+                        pt["tracks"][unique_track] = res["time_str"]
                     else:
-                        pt["tracks"][trk] = _format_split(ms - best_for_track)
+                        pt["tracks"][unique_track] = _format_split(ms - best_for_track)
                 elif is_dns:
                     pt["total_ms"] += dnf_penalty_ms
                     gap = dnf_penalty_ms - best_for_track if best_for_track > 0 else 0
-                    pt["tracks"][trk] = f"DNS {_format_split(gap)}"
+                    pt["tracks"][unique_track] = f"DNS {_format_split(gap)}"
                 else:
                     pt["total_ms"] += dnf_penalty_ms
                     gap = dnf_penalty_ms - best_for_track if best_for_track > 0 else 0
-                    pt["tracks"][trk] = f"DNF {_format_split(gap)}"
+                    pt["tracks"][unique_track] = f"DNF {_format_split(gap)}"
 
         time_ladder_sorted = sorted(player_times.items(), key=lambda x: x[1]["total_ms"])
         first_total = time_ladder_sorted[0][1]["total_ms"] if time_ladder_sorted else 0
@@ -433,14 +455,16 @@ async def session_json(session_id: str):
         # --- 5. Single Races (Fixed Ghost Filtering) ---
         single_races = []
         for race, results in all_results:
-            trk = race["track_name"]
-            best_for_track = track_best_ms[trk] if track_best_ms[trk] != float('inf') else 0
-            worst_for_track = track_worst_ms[trk] if track_worst_ms[trk] != 0 else 60000 
+            unique_track = race_track_map[race["id"]]
+            best_for_track = track_best_ms[unique_track] if track_best_ms[unique_track] != float('inf') else 0
+            worst_for_track = track_worst_ms[unique_track] if track_worst_ms[unique_track] != 0 else 60000 
             dnf_penalty_ms = worst_for_track + 30000 
 
+            # Sort finished players first, then DNF players
+            sorted_results = sorted(results, key=lambda x: (0 if x["finished"] else 1, x["position"]))
+
             players = []
-            for res in results:
-                # If they didn't finish and have no time recorded, they never started. Skip them!
+            for res in sorted_results:
                 is_dns = (not res["finished"] and not res["time_str"])
                 if is_dns:
                     continue
@@ -451,13 +475,15 @@ async def session_json(session_id: str):
                     split_ms = ms - best_for_track
                     split_str = _format_split(split_ms) if res["position"] != 1 else "—"
                     display_time = res["time_str"]
+                    display_rank = res["position"]
                 else:
                     split_ms = dnf_penalty_ms - best_for_track if best_for_track > 0 else 0
                     split_str = f"DNF {_format_split(split_ms)}"
                     display_time = "DNF"
+                    display_rank = "—"  # Shows '—' instead of '0' for DNF rank
 
                 players.append({
-                    "rank": res["position"], 
+                    "rank": display_rank, 
                     "name": res["player_name"], 
                     "car": res["car"],
                     "time": display_time, 
@@ -466,7 +492,7 @@ async def session_json(session_id: str):
                     "finished": bool(res["finished"]), 
                     "points": res["points_earned"],
                 })
-            single_races.append({"track": trk, "race_order": race["race_order"], "players": players})
+            single_races.append({"track": race["track_name"], "race_order": race["race_order"], "players": players})
 
         top_score = [{"name": s["player_name"], "value": s["total_points"]} for s in score_ladder[:3]]
         top_time = [{"name": t["player_name"], "value": t["total_time"]} for t in time_ladder[:3]]
@@ -503,18 +529,44 @@ async def session_json(session_id: str):
 async def hub(request: Request):
     now = time.time()
     with get_db() as conn:
+        # Mark inactive sessions (>20 min without updates) as Completed
         conn.execute("UPDATE sessions SET status='Completed' WHERE status='Active' AND ?-last_updated>1200", (now,))
+        
+        # Permanently purge sessions older than 1 hour (3600s)
         old_ids = [r["id"] for r in conn.execute("SELECT id FROM sessions WHERE ?-last_updated>3600", (now,)).fetchall()]
         if old_ids:
             ph = ",".join("?" * len(old_ids))
             conn.execute(f"DELETE FROM race_results WHERE race_id IN (SELECT id FROM races WHERE session_id IN ({ph}))", old_ids)
             conn.execute(f"DELETE FROM races WHERE session_id IN ({ph})", old_ids)
             conn.execute(f"DELETE FROM sessions WHERE id IN ({ph})", old_ids)
-        sessions = conn.execute("SELECT * FROM sessions WHERE status='Active' ORDER BY last_updated DESC").fetchall()
+
+        # Query: Active non-coordinator sessions OR Completed sessions updated within the last 20 minutes (1200s)
+        sessions = conn.execute(
+            """SELECT * FROM sessions 
+               WHERE (status='Active' AND connection NOT LIKE '%Coordinator%' AND version != 'Coordinator')
+                  OR (status='Completed' AND ?-last_updated <= 1200)
+               ORDER BY last_updated DESC""",
+            (now,)
+        ).fetchall()
+
         enriched = []
         for s in sessions:
             pc = conn.execute("SELECT COUNT(DISTINCT rr.player_name) as cnt FROM race_results rr JOIN races r ON rr.race_id=r.id WHERE r.session_id=?", (s["id"],)).fetchone()["cnt"]
-            enriched.append({"id": s["id"], "host_name": s["host_name"], "mode": s["mode"], "tracks_played": s["tracks_played"], "player_count": pc, "last_updated": s["last_updated"]})
+            
+            is_coord = "Coordinator" in (s["version"] or "") or "Coordinator" in (s["connection"] or "") or (len(s["id"]) > 20 and "-" not in s["id"])
+            link = f"/coordinator/{s['id']}" if is_coord else f"/session/{s['id']}"
+
+            enriched.append({
+                "id": s["id"],
+                "host_name": s["host_name"],
+                "mode": s["mode"],
+                "tracks_played": s["tracks_played"],
+                "player_count": pc,
+                "last_updated": s["last_updated"],
+                "status": s["status"],
+                "link": link
+            })
+
     return templates.TemplateResponse(request=request, name="hub.html", context={"sessions": enriched})
 
 @app.get("/session/{session_id}", response_class=HTMLResponse)
@@ -523,3 +575,233 @@ async def session_dashboard(request: Request, session_id: str):
         session = conn.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
         if not session: return HTMLResponse("<h1>Session not found</h1>", status_code=404)
     return templates.TemplateResponse(request=request, name="dashboard.html", context={"session": dict(session)})
+
+
+# =============================================================================
+# Coordinator SSE Integration
+# All routes below are strictly additive. CSV pipeline is untouched above.
+# =============================================================================
+
+COORDINATOR_BASE = "https://net.rv.gl/api/sessions"
+
+
+@app.get("/api/coordinator/global-events")
+async def proxy_global_events():
+    """Proxies the global Coordinator SSE stream to bypass browser CORS."""
+    upstream_url = f"{COORDINATOR_BASE}/events"
+
+    async def event_generator():
+        async with httpx.AsyncClient(timeout=None) as client:
+            try:
+                async with client.stream("GET", upstream_url) as response:
+                    async for line in response.aiter_lines():
+                        yield f"{line}\n"
+                        if line == "":
+                            yield "\n"
+            except (httpx.RemoteProtocolError, httpx.ReadError):
+                pass
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+class CoordinatorIngestPayload(BaseModel):
+    coord_id: str
+    lobby_name: str
+    mode: str = "Arcade"
+    car_rating: str = "Rookie"
+    pickups: str = "Enabled"
+    date_str: str = ""
+    history: list
+
+
+@app.get("/coordinator/{coord_id}", response_class=HTMLResponse)
+async def coordinator_dashboard(request: Request, coord_id: str):
+    """Serves the coordinator lobby page (matches Active or Completed sessions)."""
+    with get_db() as conn:
+        session = conn.execute(
+            "SELECT * FROM sessions WHERE id=? OR host_name=?",
+            (coord_id, f"coord:{coord_id}")
+        ).fetchone()
+    ctx = {
+        "coord_id": coord_id,
+        "session": dict(session) if session else None,
+    }
+    return templates.TemplateResponse(request=request, name="coordinator_dashboard.html", context=ctx)
+
+@app.get("/api/coordinator/{coord_id}/events")
+async def coordinator_events_proxy(coord_id: str):
+    """
+    Proxies the Coordinator lobby SSE stream to the browser.
+    Handles keep-alive ping comments and forwards event: end for session termination.
+    Uses httpx async streaming so the server never blocks.
+    """
+    upstream_url = f"{COORDINATOR_BASE}/{coord_id}/events"
+
+    async def event_generator():
+        # httpx timeout=None keeps the connection open indefinitely for SSE
+        async with httpx.AsyncClient(timeout=None) as client:
+            try:
+                async with client.stream("GET", upstream_url) as response:
+                    async for line in response.aiter_lines():
+                        # Forward every SSE line verbatim: data:, event:, and : ping comments
+                        yield f"{line}\n"
+                        # Blank line signals end of one SSE message block
+                        if line == "":
+                            yield "\n"
+            except (httpx.RemoteProtocolError, httpx.ReadError):
+                # Upstream closed — send a terminal event so the browser cleans up
+                yield "event: end\n"
+                yield 'data: {"reason":"session_ended"}\n\n'
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # Prevents Nginx/proxies from buffering SSE chunks
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/coordinator/ingest")
+async def coordinator_ingest(payload: CoordinatorIngestPayload):
+    now = time.time()
+    coord_session_key = f"coord:{payload.coord_id}"
+
+    races = []
+    player_cars: dict[str, str] = {}
+
+    for entry in payload.history:
+        track = entry.get("TrackName", entry.get("track", entry.get("Track", "Unknown Track")))
+        results_raw = entry.get("Entries", entry.get("Results", entry.get("results", [])))
+        starters = len(results_raw)
+
+        race_players = []
+        for result in results_raw:
+            name = result.get("Name", result.get("name", "Unknown"))
+            car = result.get("CarName", result.get("Car", result.get("car", "Unknown")))
+            
+            raw_time = result.get("TimeMS", result.get("Time", result.get("time", "")))
+            if isinstance(raw_time, int):
+                time_str = _ms_to_str(raw_time) if raw_time > 0 else ""
+            else:
+                time_str = str(raw_time)
+
+            raw_best = result.get("BestLapMS", result.get("BestLap", result.get("best_lap", "")))
+            if isinstance(raw_best, int):
+                best_lap_str = _ms_to_str(raw_best) if raw_best > 0 else "—"
+            else:
+                best_lap_str = str(raw_best) if raw_best else "—"
+
+            position = int(result.get("Position", result.get("position", 99)))
+            finished_raw = result.get("Finished", result.get("finished", False))
+            finished = finished_raw is True or str(finished_raw).lower() == "true"
+
+            if position == 0 or not finished:
+                position = 99
+
+            player_cars[name] = car
+            race_players.append({
+                "position": position,
+                "name": name,
+                "car": car,
+                "time_str": time_str,
+                "best_lap_str": best_lap_str,
+                "finished": finished,
+            })
+
+        # Skip aborted races where every player DNF'd
+        if race_players and all(not p["finished"] for p in race_players):
+            continue
+
+        races.append({"track": track, "starters": starters, "players": race_players})
+
+    # Master Roster Injection
+    for race in races:
+        race_player_names = {p["name"] for p in race["players"]}
+        for missing_name, car in player_cars.items():
+            if missing_name not in race_player_names:
+                race["players"].append({
+                    "position": 99,
+                    "name": missing_name,
+                    "car": car,
+                    "time_str": "",
+                    "best_lap_str": "—",
+                    "finished": False,
+                })
+
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM sessions WHERE id=? OR host_name=?",
+            (payload.coord_id, coord_session_key)
+        ).fetchone()
+
+        if row:
+            session_id = row["id"]
+            conn.execute(
+                "UPDATE sessions SET host_name=?, last_updated=?, mode=?, version=?, tracks_played=?, pickups=?, session_date=? WHERE id=?",
+                (payload.lobby_name, now, payload.mode, payload.car_rating, len(races), payload.pickups, payload.date_str, session_id)
+            )
+        else:
+            session_id = payload.coord_id
+            conn.execute(
+                """INSERT INTO sessions
+                (id, host_name, status, last_updated, last_host_ping, mode, tracks_played,
+                 version, connection, session_date, pickups)
+                VALUES (?, ?, 'Active', ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (session_id, payload.lobby_name, now, now,
+                 payload.mode, len(races), payload.car_rating, "Public (Coordinator)", payload.date_str, payload.pickups)
+            )
+
+        # Wipe and re-insert race results
+        old_race_ids = [
+            r["id"] for r in
+            conn.execute("SELECT id FROM races WHERE session_id=?", (session_id,)).fetchall()
+        ]
+        if old_race_ids:
+            ph = ",".join("?" * len(old_race_ids))
+            conn.execute(f"DELETE FROM race_results WHERE race_id IN ({ph})", old_race_ids)
+        conn.execute("DELETE FROM races WHERE session_id=?", (session_id,))
+
+        for order, race in enumerate(races, start=1):
+            starters = race["starters"]
+            cur = conn.execute(
+                "INSERT INTO races (session_id, track_name, race_order) VALUES (?, ?, ?)",
+                (session_id, race["track"], order)
+            )
+            race_id = cur.lastrowid
+
+            for p in race["players"]:
+                pts = (starters - p["position"] + 1) if p["finished"] else 0
+                if pts < 0:
+                    pts = 0
+                conn.execute(
+                    """INSERT INTO race_results
+                    (race_id, player_name, car, position, finished, time_str, best_lap_str, points_earned)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (race_id, p["name"], p["car"], p["position"],
+                     int(p["finished"]), p["time_str"], p["best_lap_str"], pts)
+                )
+
+    return JSONResponse({"status": "ok", "session_id": session_id})
+
+@app.post("/api/coordinator/{coord_id}/end")
+async def coordinator_end(coord_id: str):
+    """Marks a Coordinator session as Completed and updates last_updated timestamp."""
+    now = time.time()
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE sessions SET status='Completed', last_updated=? WHERE id=? OR host_name=?",
+            (now, coord_id, f"coord:{coord_id}")
+        )
+    return JSONResponse({"status": "ended"})
