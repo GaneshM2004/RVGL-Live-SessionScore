@@ -346,7 +346,7 @@ async def session_json(session_id: str):
                     cd["wins"] += 1
 
         score_ladder = []
-        for name, s in sorted(player_stats.items(), key=lambda x: (-x[1]["points"], -x[1]["wins"], x[0][::-1])):
+        for name, s in sorted(player_stats.items(), key=lambda x: (x[1]["points"], x[1]["wins"], x[0]), reverse=True):
             avg = round(s["points"] / s["races"], 2) if s["races"] > 0 else 0
             
             # Build the nested breakdown for the frontend
