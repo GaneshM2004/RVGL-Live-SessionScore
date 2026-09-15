@@ -1,105 +1,96 @@
 # RVGL Live SessionScore
 
-A real-time session scoring system for **Re-Volt GL (RVGL)** gaming sessions with comprehensive race analytics, live dashboards, and multi-car performance tracking.
+A real-time session scoring system for Re-Volt GL (RVGL) gaming sessions with comprehensive race analytics, live dashboards, and multi-car performance tracking.
 
-🎮 **[Live Demo](https://rvgl-live-sessionscore.onrender.com/)**
+[Live Demo](https://rvgl-live-sessionscore.onrender.com/)
 
----
+## Overview
 
-## 📋 What It Does
+RVGL Live SessionScore is a web-based application designed for RVGL gaming communities to track and analyze racing sessions. The system provides granular race-by-race storage with rich aggregation capabilities, beautiful HTML dashboards, and accurate scoring mechanics that handle edge cases like DNF (Did Not Finish) and DNS (Did Not Start) penalties.
 
-RVGL Live SessionScore is a web-based application designed for RVGL gaming communities to:
+### Key Features
 
-- **Track Live Scores** – Monitor player points, rankings, and performance in real-time
-- **Analyze Race Data** – Granular race-by-race storage with rich aggregation and filtering
-- **Display Multi-Car Stats** – Per-car and per-driver performance breakdowns
-- **Time Ladder Rankings** – Accurate time-based rankings with DNF penalties
-- **Session Management** – Support for both CSV uploads and Coordinator SSE streaming
-- **Beautiful Dashboards** – Clean HTML interface with sortable tables and responsive design
+- Real-time score aggregation and player rankings
+- Multi-car tracking per player with per-car statistics
+- Time ladder rankings with split times relative to race leaders
+- Automatic DNS/DNF penalty system with configurable thresholds
+- Track boundary detection for comparative time analysis
+- Support for both CSV data uploads and live-stream Coordinator integration
+- Session archival with automatic cleanup of old data
+- Responsive HTML interface with sortable tables
 
-**Key Features:**
-- ✅ Real-time score aggregation and player rankings
-- ✅ Multi-car tracking per player with per-car statistics
-- ✅ Time ladder with split times relative to race leader
-- ✅ Automatic DNS/DNF penalty system with configurable thresholds
-- ✅ Track boundary detection for comparative time analysis
-- ✅ Both CSV and live-stream (Coordinator) data ingestion
-- ✅ Session archival with automatic cleanup
+## Technology Stack
 
----
+- Backend: FastAPI, Python 3.7+
+- Database: SQLite (local, no external dependencies)
+- Frontend: HTML, CSS, JavaScript
+- Deployment: Render.com (or any Docker-compatible host)
 
-## 🛠️ Technology Stack
-
-| Component | Technologies |
-|-----------|--------------|
-| **Backend** | FastAPI, Python 3.7+ |
-| **Database** | SQLite (local, no external dependency) |
-| **Frontend** | HTML, CSS, JavaScript |
-| **Deployment** | Render (or any Docker-compatible host) |
-
----
-
-## 🚀 Quick Start
+## Getting Started
 
 ### Prerequisites
+
 - Python 3.7 or higher
 - pip (Python package manager)
 - Git
 
 ### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/GaneshM2004/RVGL-Live-SessionScore.git
-   cd RVGL-Live-SessionScore
-   ```
+1. Clone the repository:
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+git clone https://github.com/GaneshM2004/RVGL-Live-SessionScore.git
+cd RVGL-Live-SessionScore
+```
 
-3. **Run the server:**
-   ```bash
-   python app.py
-   ```
-   
-   The application will start on `http://localhost:8000` by default.
+2. Install dependencies:
 
-4. **Open your browser:**
-   - Navigate to `http://localhost:8000` to see the session hub
-   - Upload a CSV session file or connect to a live Coordinator stream
+```bash
+pip install -r requirements.txt
+```
 
----
+3. Run the server:
 
-## 📖 Usage
+```bash
+python app.py
+```
+
+The application will start on `http://localhost:8000` by default.
+
+4. Open your browser and navigate to `http://localhost:8000` to access the session hub.
+
+## Usage
 
 ### Session Hub
-The main page displays:
-- All active and recently completed sessions
+
+The main page displays all active and recently completed sessions with:
+
 - Player counts per session
-- Mode and track information
+- Game mode and track information
+- Session status (Active or Completed)
 - Quick links to individual session dashboards
 
 ### Session Dashboard
-Each session provides:
-- **Score Ladder** – Players ranked by total points with per-car breakdowns
-- **Time Ladder** – Players ranked by cumulative time with DNF/DNS penalties
-- **Car Statistics** – Performance data for each vehicle used in the session
-- **Individual Races** – Detailed results for each race with splits and best lap times
-- **Podiums** – Top 3 players in score, time, and wins categories
 
-### Data Upload
-Upload race data via CSV:
+Each session provides detailed analytics including:
+
+- Score Ladder: Players ranked by total points with per-car breakdowns
+- Time Ladder: Players ranked by cumulative time with DNF/DNS penalties applied
+- Car Statistics: Performance data for each vehicle used in the session
+- Individual Races: Detailed results for each race with split times and best lap times
+- Podiums: Top 3 players in score, time, and wins categories
+
+### Uploading Data
+
+To upload race data via CSV:
+
 ```bash
 python client_uploader.py
 ```
 
-This script sends race data to the backend for live tracking.
+The application accepts CSV files with race results and automatically parses session metadata, track information, and player performance data.
 
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 RVGL-Live-SessionScore/
@@ -114,46 +105,43 @@ RVGL-Live-SessionScore/
 │   ├── dashboard.html              # Session details page
 │   └── coordinator_dashboard.html  # Live stream viewer (Coordinator)
 │
-├── static/                         # CSS and JavaScript assets
-│   ├── css/
-│   │   └── style.css              # Styling
-│   └── js/
-│       └── *.js                    # Frontend logic
-│
-└── session_*.csv                   # Sample session data
+└── static/                         # CSS and JavaScript assets
+    ├── css/
+    │   └── style.css              # Styling
+    └── js/
+        └── *.js                    # Frontend logic
 ```
 
----
-
-## 🔌 API Endpoints
+## API Reference
 
 ### Session Management
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/` | GET | Session hub (list all sessions) |
-| `/session/{session_id}` | GET | Session dashboard |
-| `/api/session/{session_id}/json` | GET | Session data in JSON format |
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Retrieve session hub with all active sessions |
+| `/session/{session_id}` | GET | Retrieve detailed dashboard for a specific session |
+| `/api/session/{session_id}/json` | GET | Get session data in JSON format |
 
 ### Data Upload
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/session/upload` | POST | Upload race data from CSV |
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/session/upload` | POST | Upload race data from CSV file |
 
 ### Coordinator Integration
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/coordinator/{coord_id}` | GET | Live Coordinator lobby viewer |
-| `/api/coordinator/ingest` | POST | Ingest Coordinator lobby data |
-| `/api/coordinator/{coord_id}/events` | GET | SSE stream for live updates |
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/coordinator/{coord_id}` | GET | View live Coordinator lobby |
+| `/api/coordinator/ingest` | POST | Ingest live Coordinator lobby data |
+| `/api/coordinator/{coord_id}/events` | GET | Server-sent events stream for live updates |
 | `/api/coordinator/{coord_id}/end` | POST | Mark Coordinator session as completed |
 
----
+## CSV Data Format
 
-## 📊 CSV Format
+The application expects race data in the following CSV structure:
 
-Upload race results using this CSV structure:
-
-```csv
+```
 Version,Release,Network,Hosting
 Session,Date,HostName/ServerName,GameMode,Laps,Pickups
 Results,TrackName,NumberOfStarters
@@ -164,41 +152,40 @@ Results,Track2,NumberOfStarters
 ...
 ```
 
----
+Times should be formatted as `MM:SS:MS` or `HH:MM:SS:MS` for times exceeding one hour, where MS represents milliseconds.
 
-## ⚙️ Configuration
+## Configuration
 
-Key settings in `app.py`:
+Key settings can be adjusted in `app.py`:
 
-```python
-IDLE_TIMEOUT = 1200      # 20 minutes - mark session as completed if inactive
-HOST_GRACE = 180         # 3 minutes - grace period for host re-connection
-```
-
-### Time Format
-Times are stored as milliseconds internally and formatted as:
-- **Format:** `MM:SS:MS` or `HH:MM:SS:MS` (for times >= 1 hour)
-- **Example:** `01:23:456` (1 minute, 23 seconds, 456 milliseconds)
+- `IDLE_TIMEOUT = 1200`: Time in seconds before marking a session as completed (20 minutes)
+- `HOST_GRACE = 180`: Grace period for host reconnection (3 minutes)
 
 ### Scoring System
-- **Points:** Calculated as `(starters - position + 1)` for finished races
-- **DNF Penalty:** `worst_race_time + 30 seconds`
-- **DNS (Did Not Start):** Player roster injected automatically for fairness
 
----
+Points are calculated using the formula: `(number_of_starters - position + 1)` for completed races.
 
-## 🚢 Deployment
+For players who did not finish:
+- DNF Penalty: worst race time plus 30 seconds
+- DNS (Did Not Start): Automatically injected into race results to ensure fair comparative analysis
 
-### Render.com (Current Deployment)
-The app is deployed at: https://rvgl-live-sessionscore.onrender.com/
+## Deployment
 
-To deploy your own:
-1. Push to GitHub
-2. Connect repository to Render.com
-3. Set startup command: `uvicorn app:app --host 0.0.0.0`
-4. Render will auto-scale the instance as needed
+### Render.com
+
+The application is currently deployed at https://rvgl-live-sessionscore.onrender.com/
+
+To deploy your own instance:
+
+1. Push your repository to GitHub
+2. Connect your repository to Render.com
+3. Set the startup command to: `uvicorn app:app --host 0.0.0.0`
+4. Deploy and Render will automatically scale as needed
 
 ### Docker
+
+Create a Dockerfile:
+
 ```dockerfile
 FROM python:3.11
 WORKDIR /app
@@ -208,54 +195,33 @@ COPY . .
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0"]
 ```
 
----
+Then build and run:
 
-## 🤝 Contributing
+```bash
+docker build -t rvgl-scoreboard .
+docker run -p 8000:8000 rvgl-scoreboard
+```
 
-Contributions are welcome! To contribute:
+## Contributing
+
+Contributions are welcome. To contribute:
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
 3. Commit your changes: `git commit -m "Add your feature"`
-4. Push to your fork: `git push origin feature/your-feature`
-5. Open a Pull Request
+4. Push to your fork: `git push origin feature/your-feature-name`
+5. Open a pull request
 
-### Areas for Contribution
-- Additional dashboard visualizations (charts, graphs)
-- Performance optimizations for large sessions
-- Mobile-responsive improvements
-- Additional export formats (JSON, PDF)
-- Unit tests and CI/CD pipelines
+Areas for contribution include additional dashboard visualizations, performance optimizations, mobile responsiveness improvements, and additional export formats.
 
----
+## Issues and Support
 
-## 📝 License
+For bug reports, feature requests, or questions, please open an issue on the GitHub repository.
 
-This project is provided as-is for the RVGL community. Check the LICENSE file for details.
+## Repository
 
----
+https://github.com/GaneshM2004/RVGL-Live-SessionScore
 
-## 🆘 Support & Issues
+## About
 
-- **Found a bug?** [Open an issue](https://github.com/GaneshM2004/RVGL-Live-SessionScore/issues)
-- **Questions?** Check existing issues or create a new one with the `question` label
-- **Feature requests?** Open an issue with the `enhancement` label
-
----
-
-## 📞 Contact
-
-- **Maintainer:** [GaneshM2004](https://github.com/GaneshM2004)
-- **Live Demo:** https://rvgl-live-sessionscore.onrender.com/
-
----
-
-## 🎮 About RVGL
-
-**Re-Volt GL** is a community-driven 3D online racing game. Learn more at [Re-Volt.io](https://re-volt.io/)
-
----
-
-**Status:** 🟢 Active Development  
-**Last Updated:** 2026  
-**Contributors:** Welcome!
+RVGL Live SessionScore is a community tool designed to enhance the Re-Volt GL gaming experience by providing comprehensive race analytics and session tracking capabilities.
